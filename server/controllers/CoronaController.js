@@ -41,7 +41,7 @@ class CoronaController {
     }
 
     static getAll(req, res, next){
-        Country.findAll()
+        Country.findAll({order : [['cases', 'DESC']]})
         .then(data=>{
             res.status(200).json(data)
         })
@@ -51,7 +51,7 @@ class CoronaController {
     }
 
     static getReports(req, res, next){
-        Report.findAll()
+        Report.findAll({include : [{model : Country}]})
         .then(data=>{
             res.status(200).json(data)
         })
@@ -97,6 +97,38 @@ class CoronaController {
             res.status(201).json(dataReport)
         ])
         .catch(err=>{
+            next(err)
+        })
+    }
+
+    static deleteReport(req, res, next){
+        let reportId = req.params.id
+        let countryId = null
+        // let oldCases = null
+        let reportCases = null
+        Report.findOne({where : {id : reportId}})
+        .then(data =>{
+            reportCases = data.cases
+            countryId = data.CountryId
+            return Country.findOne({where : { id : countryId}})
+        })
+        .then(result=>{
+            // oldCases = result.cases
+            let obj = {
+                cases : result.cases - reportCases
+            }
+            return Country.update(obj, {where : { id : countryId }})
+        })
+        .then(()=>{
+            return Report.destroy({where : { id : reportId }})
+        })
+        .then(()=>{
+            return Country.findOne({where : { id : countryId }})
+        })
+        .then(result=>{
+            res.status(200).json({country : result, report : "Successfully delete"})
+        })
+        .catch(err =>{
             next(err)
         })
     }
